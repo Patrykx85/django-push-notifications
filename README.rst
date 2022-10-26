@@ -9,7 +9,7 @@ django-push-notifications
    :target: https://github.com/jazzband/django-push-notifications/actions
    :alt: GitHub Actions
 
-.. image:: https://codecov.io/gh/jazzband/django-push-notifications/branch/main/graph/badge.svg?token=PcC594rhI4
+.. image:: https://codecov.io/gh/jazzband/django-push-notifications/branch/master/graph/badge.svg?token=PcC594rhI4
    :target: https://codecov.io/gh/jazzband/django-push-notifications
    :alt: Code coverage
 
@@ -194,7 +194,49 @@ For WNS, you need both the ``WNS_PACKAGE_SECURITY_KEY`` and the ``WNS_SECRET_KEY
 		}
 		return outputArray;
 	}
-	function loadVersionBrowser (userAgent) {
+
+	function loadVersionBrowser () {
+		if ("userAgentData" in navigator) {
+			// navigator.userAgentData is not available in
+			// Firefox and Safari
+			const uaData = navigator.userAgentData;
+			// Outputs of navigator.userAgentData.brands[n].brand are e.g.
+			// Chrome: 'Google Chrome'
+			// Edge: 'Microsoft Edge'
+			// Opera: 'Opera'
+			let browsername;
+			let browserversion;
+			let chromeVersion = null;
+			for (var i = 0; i < uaData.brands.length; i++) {
+				let brand = uaData.brands[i].brand;
+				browserversion = uaData.brands[i].version;
+				if (brand.match(/opera|chrome|edge|safari|firefox|msie|trident/i) !== null) {
+					// If we have a chrome match, save the match, but try to find another match
+					// E.g. Edge can also produce a false Chrome match.
+					if (brand.match(/chrome/i) !== null) {
+						chromeVersion = browserversion;
+					}
+					// If this is not a chrome match return immediately
+					else {
+						browsername = brand.substr(brand.indexOf(' ')+1);
+						return {
+							name: browsername,
+							version: browserversion
+						}
+					}
+				}
+			}
+			// No non-Chrome match was found. If we have a chrome match, return it.
+			if (chromeVersion !== null) {
+				return {
+					name: "chrome",
+					version: chromeVersion
+				}
+			}
+		}
+		// If no userAgentData is not present, or if no match via userAgentData was found,
+		// try to extract the browser name and version from userAgent
+		const userAgent = navigator.userAgent;
 		var ua = userAgent, tem, M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
 		if (/trident/i.test(M[1])) {
 			tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
@@ -421,7 +463,7 @@ Note: gcm_send_bulk_message must be used when sending messages to topic subscrib
 	from push_notifications.gcm import send_message
 
         # First param is "None" because no Registration_id is needed, the message will be sent to all devices subscribed to the topic.
-        send_message(None, {"body": "Hello members of my_topic!"}, to="/topics/my_topic")
+        send_message(None, {"body": "Hello members of my_topic!"}, cloud_type="FCM", to="/topics/my_topic")
 
 Reference: `FCM Documentation <https://firebase.google.com/docs/cloud-messaging/android/topic-messaging>`_
 
